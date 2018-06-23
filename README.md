@@ -1,4 +1,4 @@
-# game.libretro.vram.test addon for Kodi
+# game.libretro.vram-test addon for Kodi
 
 This is a [Kodi](http://kodi.tv) game addon for VRAM Test.
 
