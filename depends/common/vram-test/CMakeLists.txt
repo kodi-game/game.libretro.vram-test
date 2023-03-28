@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 project(vram-test)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
@@ -17,14 +17,29 @@ endif()
 
 if(CORE_SYSTEM_NAME STREQUAL windows)
   find_package(MinGW REQUIRED)
-  set(BUILD_COMMAND ${MINGW_MAKE} -j$ENV{NUMBER_OF_PROCESSORS} -C video/software/rendering_direct_to_vram -f Makefile platform=win  ${LIBRETRO_DEBUG} GIT_VERSION=)
+  if(CPU STREQUAL arm64)
+    set(MSYSTEM MINGW64)
+  else()
+    set(MSYSTEM MINGW32)
+  endif()
+  set(BUILD_COMMAND ${MINGW_MAKE} -j$ENV{NUMBER_OF_PROCESSORS} -C video/software/rendering_direct_to_vram -f Makefile platform=win MSYSTEM=${MSYSTEM}  ${LIBRETRO_DEBUG} GIT_VERSION=)
 elseif(CORE_SYSTEM_NAME STREQUAL linux)
   set(BUILD_COMMAND $(MAKE) -C video/software/rendering_direct_to_vram -f Makefile  platform=unix ${LIBRETRO_DEBUG} GIT_VERSION=)
 elseif(CORE_SYSTEM_NAME STREQUAL osx)
   set(BUILD_COMMAND $(MAKE) -C video/software/rendering_direct_to_vram -f Makefile  platform=osx ${LIBRETRO_DEBUG} GIT_VERSION=)
-elseif(CORE_SYSTEM_NAME STREQUAL ios)
-  set(LIBRETRO_SONAME testsw_vram_libretro_ios${CMAKE_SHARED_LIBRARY_SUFFIX})
-  set(BUILD_COMMAND IOSSDK=${CMAKE_OSX_SYSROOT} $(MAKE) -C video/software/rendering_direct_to_vram -f Makefile  platform=ios ${LIBRETRO_DEBUG} GIT_VERSION=)
+elseif(CORE_SYSTEM_NAME STREQUAL ios OR CORE_SYSTEM_NAME STREQUAL darwin_embedded)
+  if(CORE_PLATFORM_NAME STREQUAL ios)
+    set(LIBRETRO_SONAME testsw_vram_libretro_ios${CMAKE_SHARED_LIBRARY_SUFFIX})
+    if(CPU STREQUAL arm64)
+      set(PLATFORM ios-arm64)
+    else()
+      set(PLATFORM ios)
+    endif()
+    set(BUILD_COMMAND IOSSDK=${CMAKE_OSX_SYSROOT} $(MAKE) -C video/software/rendering_direct_to_vram -f Makefile  platform=${PLATFORM} ${LIBRETRO_DEBUG} GIT_VERSION=)
+  elseif(CORE_PLATFORM_NAME STREQUAL tvos)
+    set(LIBRETRO_SONAME testsw_vram_libretro_tvos${CMAKE_SHARED_LIBRARY_SUFFIX})
+    set(BUILD_COMMAND IOSSDK=${CMAKE_OSX_SYSROOT} $(MAKE) -C video/software/rendering_direct_to_vram -f Makefile  platform=tvos-arm64 ${LIBRETRO_DEBUG} GIT_VERSION=)
+  endif()
 elseif(CORE_SYSTEM_NAME STREQUAL android)
   if(NOT NDKROOT)
     message(FATAL_ERROR "${PROJECT_NAME} needs NDKROOT for Android. Missing Toolchain file?")
@@ -36,7 +51,7 @@ elseif(CORE_SYSTEM_NAME STREQUAL android)
   else()
     message(FATAL_ERROR "${PROJECT_NAME} needs Android ${CPU} build command in CMakeLists.txt!")
   endif()
-  set(BUILD_COMMAND GNUMAKE=$(MAKE) ${NDKROOT}/ndk-build -C video/software/rendering_direct_to_vram APP_ABI=${PLATFORM} V7NEONOPTIMIZATION=1 GIT_VERSION=
+  set(BUILD_COMMAND GNUMAKE=$(MAKE) ${NDKROOT}/ndk-build -C video/software/rendering_direct_to_vram/jni APP_ABI=${PLATFORM} V7NEONOPTIMIZATION=1 GIT_VERSION=
                                     NDK_LIBS_OUT=${PROJECT_SOURCE_DIR}/${LIBRETRO_BINARY_DIR}  ${LIBRETRO_DEBUG} V=1
                     && cp ${PROJECT_SOURCE_DIR}/${LIBRETRO_BINARY_DIR}/${PLATFORM}/${LIBRETRO_JNISONAME} ${PROJECT_SOURCE_DIR}/${LIBRETRO_BINARY_DIR}/${LIBRETRO_SONAME})
 elseif(CORE_SYSTEM_NAME STREQUAL rbpi)
@@ -57,7 +72,4 @@ externalproject_add(${PROJECT_NAME}
 
 # install the generated shared library
 install(FILES ${PROJECT_SOURCE_DIR}/${LIBRETRO_BINARY_DIR}/${LIBRETRO_SONAME}
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-
-# write the config.cmake script
-file(WRITE ${CMAKE_INSTALL_PREFIX}/libretro-${PROJECT_NAME}-config.cmake "set(${PROJECT_NAME_UC}_LIB ${CMAKE_INSTALL_PREFIX}/lib/${LIBRETRO_SONAME})")
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/libretro RENAME testsw_vram_libretro${CMAKE_SHARED_LIBRARY_SUFFIX})

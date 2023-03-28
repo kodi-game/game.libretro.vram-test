@@ -1,1 +1,1 @@
-vram-test https://github.com/libretro/libretro-samples master
+vram-test https://github.com/libretro/libretro-samples/archive/bce193bc1b8c9a3da43b2ead0158a69e28b37ed8.tar.gz
